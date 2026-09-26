@@ -79,6 +79,11 @@ jobs:
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/dataforge:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/dataforge:${{ github.sha }}
 
+      - name: Deploy to Render
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
       - name: Stop Docker container
         if: always()
         run: docker rm -f dataforge-test
