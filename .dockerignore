@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.flake8
+.git/
+.gitignore
+tests/
+sample_data/
