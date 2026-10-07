@@ -17,7 +17,7 @@ def root():
     return {
         "service": "DataForge CSV Processing Service",
         "status": "running",
-        "version": "1.0.0",
+        "version": "1.0.1",
     }
 
 
