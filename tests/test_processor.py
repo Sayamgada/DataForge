@@ -24,13 +24,22 @@ def test_validate_valid_csv():
     assert message == "CSV validation successful"
 
 
-def test_validate_missing_columns():
-    df = pd.DataFrame({"id": [1], "name": ["John"], "age": [25]})
+def test_validate_arbitrary_columns():
+    df = pd.DataFrame({"product": ["Book"], "quantity": [2]})
+
+    is_valid, message = validate_csv(df)
+
+    assert is_valid is True
+    assert message == "CSV validation successful"
+
+
+def test_validate_duplicate_normalized_columns():
+    df = pd.DataFrame([["Book", "Novel"]], columns=[" Product ", "product"])
 
     is_valid, message = validate_csv(df)
 
     assert is_valid is False
-    assert "Missing required columns" in message
+    assert message == "CSV contains duplicate columns: product"
 
 
 def test_clean_csv_removes_invalid_and_duplicate_records():
@@ -56,6 +65,40 @@ def test_clean_csv_removes_invalid_age_values():
 
     assert cleaned_df["age"].notna().all()
     assert pd.api.types.is_numeric_dtype(cleaned_df["age"])
+
+
+def test_clean_csv_handles_arbitrary_columns():
+    df = pd.DataFrame(
+        {
+            " Product ": ["  BOOK-1 ", "BOOK-2", "BOOK-2", None],
+            "Quantity": ["2", "4", "4", None],
+            "Description": [" hardcover ", " paperback ", " paperback ", None],
+        }
+    )
+
+    cleaned_df = clean_csv(df)
+
+    assert list(cleaned_df.columns) == ["product", "quantity", "description"]
+    assert cleaned_df.to_dict("records") == [
+        {
+            "product": "BOOK-1",
+            "quantity": 2,
+            "description": "hardcover",
+        },
+        {
+            "product": "BOOK-2",
+            "quantity": 4,
+            "description": "paperback",
+        },
+    ]
+
+
+def test_clean_csv_handles_numeric_department_values():
+    df = pd.DataFrame({"department": [101, 102]})
+
+    cleaned_df = clean_csv(df)
+
+    assert cleaned_df["department"].tolist() == [101, 102]
 
 
 def test_analyze_csv_record_count():

@@ -25,13 +25,13 @@ DataForge provides a REST API for CSV processing.
 
 The service can:
 
-- Validate required CSV columns
+- Validate that CSV headers are present and unique
 - Normalize column names
-- Convert numeric fields
+- Detect numeric fields
 - Clean invalid records
 - Remove duplicate records
 - Calculate numerical statistics
-- Generate department-wise record distribution
+- Generate distribution for a `department` column when present
 - Return processing results as JSON
 
 ## Technology Stack
@@ -106,15 +106,7 @@ Example response:
 
 Accepts a CSV file, validates and processes it, and returns the analysis results.
 
-The CSV file must contain the following columns:
-
-```text
-id
-name
-age
-salary
-department
-```
+The service accepts CSV files with any non-empty, unique set of column names. Column names are trimmed and converted to lowercase before processing.
 
 ## CSV Processing Flow
 
@@ -140,13 +132,11 @@ JSON Response
 
 The application performs the following operations:
 
-1. Normalizes column names.
-2. Converts `age` and `salary` to numeric values.
-3. Removes records with invalid required fields.
-4. Removes records with invalid age values.
-5. Trims whitespace from names.
-6. Converts department names to uppercase.
-7. Removes duplicate records.
+1. Normalizes column names and trims whitespace from text values.
+2. Detects columns containing numeric values so they can be included in numeric analysis.
+3. Removes entirely empty records and duplicate records.
+4. When present, converts `age` and `salary` to numeric values and removes records where those values are invalid.
+5. When present, trims `name` values and converts `department` values to uppercase.
 
 ### Data Analysis
 
@@ -295,14 +285,14 @@ The project currently contains 15 automated tests covering the CSV processing fu
 
 The project uses GitHub Actions to automate the software delivery process.
 
-The pipeline is triggered when code is pushed to the `main` branch or when a pull request targets `main`.
+The pipeline runs on pushes to `main` (including revert commits and force-pushes that move `main` to an earlier commit), pull requests targeting `main`, and manual workflow dispatches. A push that moves `main` to an earlier commit is built and deployed like any other update. To run it manually, open **Actions**, select **DataForge CI**, and choose **Run workflow**. Manual runs on `main` also publish the image and deploy; runs on other refs only test and build the image.
 
 ### Pipeline Flow
 
 ```text
 Developer
     ↓
-git push
+push / rollback / manual run
     ↓
 GitHub
     ↓

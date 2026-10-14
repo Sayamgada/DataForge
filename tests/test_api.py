@@ -48,6 +48,28 @@ def test_process_valid_csv():
     assert data["processing"]["rows_removed"] == 0
 
 
+def test_process_csv_with_arbitrary_columns():
+    csv_content = (
+        " Product , Quantity , Description\n"
+        "BOOK-1,2, Hardcover \n"
+        "BOOK-2,4, Paperback \n"
+    )
+
+    response = client.post(
+        "/process",
+        files={"file": ("inventory.csv", BytesIO(csv_content.encode()), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["analysis"]["columns"] == ["product", "quantity", "description"]
+    assert data["analysis"]["numeric_statistics"]["quantity"] == {
+        "mean": 3.0,
+        "minimum": 2.0,
+        "maximum": 4.0,
+    }
+
+
 def test_process_csv_with_duplicates():
     csv_content = (
         "id,name,age,salary,department\n"
@@ -100,13 +122,13 @@ def test_process_non_csv_file():
     assert response.json()["detail"] == ("Only CSV files are supported")
 
 
-def test_process_csv_with_missing_columns():
-    csv_content = "id,name,age\n" "1,John,25\n"
+def test_process_csv_with_custom_columns():
+    csv_content = "product,quantity\nBook,2\n"
 
     response = client.post(
         "/process",
         files={"file": ("input.csv", BytesIO(csv_content.encode()), "text/csv")},
     )
 
-    assert response.status_code == 400
-    assert "Missing required columns" in (response.json()["detail"])
+    assert response.status_code == 200
+    assert response.json()["analysis"]["columns"] == ["product", "quantity"]

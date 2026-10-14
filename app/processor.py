@@ -1,17 +1,25 @@
 import pandas as pd
 
-REQUIRED_COLUMNS = ["id", "name", "age", "salary", "department"]
-
 
 def validate_csv(df):
-    normalized_columns = [column.strip().lower() for column in df.columns]
+    normalized_columns = [str(column).strip().lower() for column in df.columns]
 
-    missing_columns = [
-        column for column in REQUIRED_COLUMNS if column not in normalized_columns
-    ]
+    if not normalized_columns:
+        return False, "CSV must contain at least one column"
 
-    if missing_columns:
-        return (False, "Missing required columns: " f"{', '.join(missing_columns)}")
+    if any(not column for column in normalized_columns):
+        return False, "CSV contains an empty column name"
+
+    seen_columns = set()
+    duplicate_columns = set()
+    for column in normalized_columns:
+        if column in seen_columns:
+            duplicate_columns.add(column)
+        seen_columns.add(column)
+
+    if duplicate_columns:
+        duplicates = ", ".join(sorted(duplicate_columns))
+        return False, f"CSV contains duplicate columns: {duplicates}"
 
     return True, "CSV validation successful"
 
@@ -19,25 +27,49 @@ def validate_csv(df):
 def clean_csv(df):
     cleaned_df = df.copy()
 
-    cleaned_df.columns = [column.strip().lower() for column in cleaned_df.columns]
+    cleaned_df.columns = [str(column).strip().lower() for column in cleaned_df.columns]
 
-    cleaned_df["age"] = pd.to_numeric(cleaned_df["age"], errors="coerce")
+    for column in cleaned_df.columns:
+        cleaned_df[column] = cleaned_df[column].map(
+            lambda value: value.strip() if isinstance(value, str) else value
+        )
+        cleaned_df[column] = cleaned_df[column].replace("", pd.NA)
 
-    cleaned_df["salary"] = pd.to_numeric(cleaned_df["salary"], errors="coerce")
+        if column not in {"age", "salary"}:
+            non_missing_values = cleaned_df[column].dropna()
+            if not non_missing_values.empty:
+                numeric_values = pd.to_numeric(non_missing_values, errors="coerce")
+                if numeric_values.notna().all():
+                    cleaned_df[column] = pd.to_numeric(
+                        cleaned_df[column], errors="coerce"
+                    )
 
-    cleaned_df["name"] = cleaned_df["name"].astype(str).str.strip()
+    cleaned_df = cleaned_df.dropna(how="all")
 
-    cleaned_df["department"] = (
-        cleaned_df["department"].astype(str).str.strip().str.upper()
-    )
+    if "age" in cleaned_df.columns:
+        cleaned_df["age"] = pd.to_numeric(cleaned_df["age"], errors="coerce")
+        cleaned_df = cleaned_df[cleaned_df["age"].notna()]
 
-    cleaned_df = cleaned_df.dropna(subset=["id", "name", "salary", "department"])
+    if "salary" in cleaned_df.columns:
+        cleaned_df["salary"] = pd.to_numeric(cleaned_df["salary"], errors="coerce")
 
-    cleaned_df = cleaned_df[cleaned_df["age"].notna()]
+    if "department" in cleaned_df.columns:
+        cleaned_df["department"] = cleaned_df["department"].map(
+            lambda value: value.upper() if isinstance(value, str) else value
+        )
 
-    cleaned_df = cleaned_df.drop_duplicates(
-        subset=["name", "age", "salary", "department"]
-    )
+    required_if_present = [
+        column
+        for column in ["id", "name", "salary", "department"]
+        if column in cleaned_df.columns
+    ]
+    if required_if_present:
+        cleaned_df = cleaned_df.dropna(subset=required_if_present)
+
+    duplicate_subset = ["name", "age", "salary", "department"]
+    if not set(duplicate_subset).issubset(cleaned_df.columns):
+        duplicate_subset = list(cleaned_df.columns)
+    cleaned_df = cleaned_df.drop_duplicates(subset=duplicate_subset)
 
     return cleaned_df
 
